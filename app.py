@@ -1,6 +1,7 @@
 import streamlit as st
 import joblib
 import re
+import os
 
 # Hàm làm sạch văn bản
 def clean_text(text):
@@ -9,12 +10,20 @@ def clean_text(text):
     text = re.sub(r'http[s]?://\S+', '', text)  # Loại bỏ URL
     return ' '.join(text.split())  # Chuẩn hóa khoảng trắng
 
+# Kiểm tra sự tồn tại của các tệp mô hình và vectorizer
+model_path = 'logistic_model.pkl'
+vectorizer_path = 'tfidf_features2.pkl'
+
+if not os.path.exists(model_path) or not os.path.exists(vectorizer_path):
+    st.error(f"Không tìm thấy tệp `{model_path}` hoặc `{vectorizer_path}`. Vui lòng đặt các tệp này trong cùng thư mục với `app.py`!")
+    st.stop()
+
 # Tải mô hình và vectorizer
 try:
-    model = joblib.load('logistic_model.pkl')
-    vectorizer = joblib.load('tfidf_vectorizer1.pkl')
-except FileNotFoundError:
-    st.error("Không tìm thấy 'logistic_model.pkl' hoặc 'tfidf_vectorizer1.pkl'. Vui lòng đặt các tệp này trong cùng thư mục với app.py!")
+    model = joblib.load(model_path)
+    vectorizer = joblib.load(vectorizer_path)
+except Exception as e:
+    st.error(f"Lỗi khi tải mô hình hoặc vectorizer: {e}")
     st.stop()
 
 # Tiêu đề ứng dụng
@@ -47,33 +56,41 @@ if st.button("Dự đoán"):
     if email_input.strip() == "":
         st.warning("Vui lòng nhập nội dung email!")
     else:
-        # Làm sạch văn bản
-        cleaned_email = clean_text(email_input)
-        
-        # Chuyển đổi thành đặc trưng TF-IDF
-        email_vector = vectorizer.transform([cleaned_email])
-        
-        # Dự đoán
-        prediction = model.predict(email_vector)[0]
-        prob = model.predict_proba(email_vector)[0]
-        
-        # Hiển thị kết quả
-        if prediction == 1:
-            st.error(f"🚨 Email này là **Spam** (Xác suất: {prob[1]:.2%})")
-        else:
-            st.success(f"✅ Email này **Không phải Spam** (Xác suất: {prob[0]:.2%})")
-        
-        # Hiển thị văn bản đã làm sạch và từ khóa quan trọng
-        with st.expander("Xem chi tiết"):
-            st.markdown("**Nội dung đã làm sạch**:")
-            st.write(cleaned_email)
-            st.markdown("**Top 5 từ quan trọng trong email**:")
-            feature_names = vectorizer.get_feature_names_out()
-            email_features = email_vector.toarray()[0]
-            top_features = sorted(zip(email_features, feature_names), reverse=True)[:5]
-            for score, word in top_features:
-                if score > 0:
-                    st.write(f"- {word}: {score:.4f}")
+        try:
+            # Làm sạch văn bản
+            cleaned_email = clean_text(email_input)
+            
+            # Chuyển đổi thành đặc trưng TF-IDF
+            email_vector = vectorizer.transform([cleaned_email])
+            
+            # Dự đoán
+            prediction = model.predict(email_vector)[0]
+            prob = model.predict_proba(email_vector)[0]
+            
+            # Hiển thị kết quả
+            if prediction == 1:
+                st.error(f"🚨 Email này là **Spam** (Xác suất: {prob[1]:.2%})")
+            else:
+                st.success(f"✅ Email này **Không phải Spam** (Xác suất: {prob[0]:.2%})")
+            
+            # Hiển thị văn bản đã làm sạch và từ khóa quan trọng
+            with st.expander("Xem chi tiết"):
+                st.markdown("**Nội dung đã làm sạch**:")
+                st.write(cleaned_email)
+                st.markdown("**Top 5 từ quan trọng trong email**:")
+                
+                feature_names = vectorizer.get_feature_names_out()
+                email_features = email_vector.toarray()[0]
+                # Lọc ra các từ có trọng số lớn hơn 0
+                top_features = sorted([(score, word) for score, word in zip(email_features, feature_names) if score > 0], reverse=True)[:5]
+                
+                if top_features:
+                    for score, word in top_features:
+                        st.write(f"- {word}: {score:.4f}")
+                else:
+                    st.write("Không có từ khóa quan trọng nào được xác định.")
+        except Exception as e:
+            st.error(f"Lỗi khi dự đoán: {e}")
 
 # Hướng dẫn sử dụng
 st.subheader("Hướng dẫn sử dụng")
