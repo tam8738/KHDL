@@ -11,10 +11,10 @@ def clean_text(text):
 
 # Tải mô hình và vectorizer
 try:
-    model = joblib.load('spam_classifier_model.pkl')
-    vectorizer = joblib.load('tfidf_vectorizer.pkl')
+    model = joblib.load('logistic_model.pkl')
+    vectorizer = joblib.load('tfidf_vectorizer1.pkl')
 except FileNotFoundError:
-    st.error("Không tìm thấy 'spam_classifier_model.pkl' hoặc 'tfidf_vectorizer.pkl'. Vui lòng đặt các tệp này trong cùng thư mục với app.py!")
+    st.error("Không tìm thấy 'logistic_model.pkl' hoặc 'tfidf_vectorizer1.pkl'. Vui lòng đặt các tệp này trong cùng thư mục với app.py!")
     st.stop()
 
 # Tiêu đề ứng dụng
